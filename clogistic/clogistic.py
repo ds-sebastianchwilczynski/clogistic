@@ -65,9 +65,9 @@ def _check_parameters(penalty, tol, C, fit_intercept, class_weight, solver,
             raise ValueError('Invalid value for class_weight. Allowed string '
                              'value is "balanced".')
 
-    if solver not in ("ecos", "L-BFGS-B", "scs"):
+    if solver not in ("ecos", "L-BFGS-B", "scs", "CLARABEL"):
         raise ValueError('Invalid value for solver. Allowed string '
-                         'values are "ecos", "L-BFGS-B" and "scs".')
+                         'values are "ecos", "L-BFGS-B", "scs" and "CLARABEL".')
 
     if not isinstance(max_iter, numbers.Number) or max_iter < 0:
         raise ValueError("max_iter must be positive; got {}.".format(max_iter))
@@ -347,12 +347,13 @@ def _fit_cvxpy(solver, penalty, tol, C, fit_intercept, max_iter, l1_ratio,
     problem = cp.Problem(obj, cons)
 
     if solver == "ecos":
-        solve_options = {'solver': cp.ECOS, 'abstol': tol}
+        solve_options = {'solver': cp.ECOS, 'abstol': tol, 'max_iters': max_iter}
     elif solver == "scs":
-        solve_options = {'solver': cp.SCS, 'eps': tol}
+        solve_options = {'solver': cp.SCS, 'eps': tol, 'max_iters': max_iter}
+    elif solver == "CLARABEL":
+        solve_options = {"solver": cp.CLARABEL}
 
-    problem.solve(max_iters=max_iter, verbose=verbose, warm_start=warm_start,
-                  **solve_options)
+    problem.solve(verbose=verbose, warm_start=warm_start, **solve_options)
 
     if fit_intercept:
         intercept_ = beta.value[-1]
@@ -529,7 +530,7 @@ class LogisticRegression(BaseEstimator, LinearClassifierMixin,
                                         self.intercept_[:, np.newaxis],
                                         axis=1)
 
-        if self.solver in ("ecos", "scs"):
+        if self.solver in ("ecos", "scs", "CLARABEL"):
             coef_, intercept_ = _fit_cvxpy(
                 self.solver, self.penalty, self.tol, self.C,
                 self.fit_intercept, self.max_iter, self.l1_ratio,
